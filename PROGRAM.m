@@ -32,6 +32,7 @@ end
 
 while ((CycleDone < MaxCycle) && (Ron > TargetRon))
     WriteCurrent = PULSE_VOLTAGE(Vpulse,PulseWidth,BiasTerminal,GndTerminal,false,Icomp);
+    % Note: Write current may be inaccurate since measurement priority is 0
     disp(['    Write current: ' num2str(WriteCurrent)]);
     
     % WAIT state to make sure the device is stable

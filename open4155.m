@@ -16,7 +16,7 @@ global OBJ4155
 MAX4155BUF = 1056;
 % The GPIB controller card number, this is the LOGICAL UNIT in the Agilent IO config software
 BoardNumber = 7;        
-DeviceNumber = 17;      % This is device settable
+DeviceNumber = 11;      % This is device settable
 
 OBJ4155 = gpib('agilent',BoardNumber,DeviceNumber);
 

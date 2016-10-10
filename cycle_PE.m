@@ -1,16 +1,17 @@
 function cycle_PE(NumberCycles,FV,RV,MaxCycle,Filename,Threshold)
 
 % Cycle testing
-%   NumberCycles: 1 by default
-%   FV: Forward voltage = +2 by default
-%   RV: Reverse voltage = -2 by default
+%   NumberCycles: 1 by default (Number of test cycles)
+%   FV: Forward voltage = +2 by default (RRAM, reverse sign for CRS)
+%   RV: Reverse voltage = -2 by default (RRAM, reverse sign for CRS)
 %   MaxCycle: 100 by default
-%   Filename: data by default
-%   Threshold: 10 by Default, to stop execution
+%   Filename: 'data' by default
+%   Threshold: 10x by Default, to stop execution
 %
 %   Starts the testing with an ERASE cycle
 %
 %   Modified by Jeremy Smith 2015/03/19
+%   Modified by Jeremy Smith 2016/10/10
 %   Email: j-smith@eecs.berkeley.edu
 
 % Modify Parameters here for convenience
@@ -19,15 +20,15 @@ BiasTerminal = '1';     % SMU bias
 GndTerminal = '3';      % SMU ground
 TargetRon = 5000;       % Target value of Ron (ohms)
 TargetRoff = 50000;     % Target value of Roff (ohms)
-ERS_PW = 0.001;         % Erase pulse width (sec)
-PGM_PW = 0.001;         % Program pulse width (sec)
-RD_PW = 0.050;          % Read pulse width (sec)
-Vread = 1.5;            % Read voltage
-ERS_Icomp = 0.020;      % Erase compliance (A)
-PGM_Icomp = 0.020;      % Program compliance (A)
+ERS_PW = 5;             % Erase pulse width (msec)
+PGM_PW = 5;             % Program pulse width (msec)
+RD_PW = 100;            % Read pulse width (msec)
+Vread = 0.9;            % Read voltage
+ERS_Icomp = 0.01;     % Erase compliance (A)
+PGM_Icomp = 0.01;     % Program compliance (A)
 
 if(nargin < 6)
-    Threshold = 5;   % Threshold for Ron/Roff
+    Threshold = 10;   % Threshold for Ron/Roff
 end
 if(nargin < 5)
     Filename = 'data';
@@ -57,44 +58,71 @@ IVfilename = [Filename '_IV_data' '_' TimeVect '.csv'];
 
 % If files do not exist, open with append
 TESTfile = fopen(IVfilename,'a','native','US-ASCII');
-TESTres = fopen(RonRoff_filename,'a','native','US-ASCII');  
+TESTres = fopen(RonRoff_filename,'a','native','US-ASCII');
+
+% Add Header to files
+fprintf(TESTfile,'TargetRon = %f,', TargetRon);
+fprintf(TESTres,'TargetRon = %f,', TargetRon);
+fprintf(TESTfile,'TargetRoff = %f\n', TargetRoff);
+fprintf(TESTres,'TargetRoff = %f\n', TargetRoff);
+fprintf(TESTfile,'ERS_PW = %f,', ERS_PW);
+fprintf(TESTres,'ERS_PW = %f,', ERS_PW);
+fprintf(TESTfile,'PGM_PW = %f,', PGM_PW);
+fprintf(TESTres,'PGM_PW = %f,', PGM_PW);
+fprintf(TESTfile,'RD_PW = %f\n', RD_PW);
+fprintf(TESTres,'RD_PW = %f\n', RD_PW);
+fprintf(TESTfile,'Vread = %f,', Vread);
+fprintf(TESTres,'Vread = %f,', Vread);
+fprintf(TESTfile,'FV = %f,', FV);
+fprintf(TESTres,'FV = %f,', FV);
+fprintf(TESTfile,'RV = %f\n', RV);
+fprintf(TESTres,'RV = %f\n', RV);
+fprintf(TESTfile,'ERS_Icomp = %f,', ERS_Icomp);
+fprintf(TESTres,'ERS_Icomp = %f,', ERS_Icomp);
+fprintf(TESTfile,'PGM_Icomp = %f\n', PGM_Icomp);
+fprintf(TESTres,'PGM_Icomp = %f\n', PGM_Icomp);
+fprintf(TESTfile,'Threshold = %f\n', Threshold);
+fprintf(TESTres,'Threshold = %f\n', Threshold);
 
 % Enables SMUs for the cycling test
+fprintf(OBJ4155, 'FMT 2,0');               % Output Data w/o Header
+fprintf(OBJ4155, ['FL 0,' BiasTerminal]);  % Turn Off Filter
+fprintf(OBJ4155, ['FL 0,' GndTerminal]);   % Turn Off Filter
+fprintf(OBJ4155, ['MM 3,' BiasTerminal]);  % 3: 1ch pulsed spot measurement
 fprintf(OBJ4155, ['CN ' BiasTerminal ',' GndTerminal]);
-    
+
 % Setup For Loop to Run Cycles
 for index = 1:NumberCycles
     disp(['Starting Cycle: ' num2str(index)]);
     % Perform ERASE to High Resistance
-    [PulseCount,Res] = ERASE(TargetRoff,RV,ERS_PW,MaxCycle,BiasTerminal,GndTerminal,Vread,RD_PW,ERS_Icomp,index);
+    [PulseCount,Res] = ERASE(TargetRoff,RV,ERS_PW/1000,MaxCycle,BiasTerminal,GndTerminal,Vread,RD_PW/1000,ERS_Icomp,index);
     
     PCE = PulseCount;
     Roff = Res(length(Res));
     disp(['  CYCLE FINISHED Roff: ' num2str(Roff)]);
     
-    % Store Data to Buffer
-    % Store R values versus pulse
+    % Store Data to Buffer (R values versus pulse)
     OutputString = regexprep(num2str(Res),'\s*',',');
     OutputString = [num2str(index) 'E,' OutputString];
     
     fprintf(TESTfile,'%s\n',OutputString);
     
     % Perform Program to Low Resistance
-    [PulseCount,Res] = PROGRAM(TargetRon,FV,PGM_PW,MaxCycle,BiasTerminal,GndTerminal,Vread,RD_PW,PGM_Icomp,index); 
+    [PulseCount,Res] = PROGRAM(TargetRon,FV,PGM_PW/1000,MaxCycle,BiasTerminal,GndTerminal,Vread,RD_PW/1000,PGM_Icomp,index); 
     
     PCP = PulseCount;
     Ron = Res(length(Res));
     disp(['  CYCLE FINISHED Ron: ' num2str(Ron)]);
     
-    % Store Data to Buffer
+    % Store Data to Buffer (R values versus pulse)
     OutputString = regexprep(num2str(Res),'\s*',',');
-    OutputString = [num2str(index) 'P,' OutputString];
-    fprintf(TESTfile,'%s\n',OutputString);    
+    OutputString = [num2str(index) 'P,' OutputString];    
 
     % Output Summary Data
     fprintf(TESTres,'%d,%f,%f,%f,%d,%d\n',index,Ron,Roff,Roff/Ron,PCE,PCP);
+    fprintf(TESTfile,'%s\n',OutputString);
     
-    % Check Ron/Roff Ratio, Return if not met
+    % Check Ron/Roff Ratio, Return if Threshold not met
     if(Roff/Ron < Threshold)
         disp(['FAIL: Roff/Ron = ' num2str(Roff/Ron)]);
         disp(['  Roff: ' num2str(Roff)]);

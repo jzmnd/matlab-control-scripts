@@ -40,7 +40,7 @@ end
 % Time Input Parameters
 Hold = num2str(HoldTime);
 Width = num2str(PulseWidth);
-Period = num2str(0.01 + PulseWidth); % 10ms pulse gap
+Period = num2str(0.1 + PulseWidth); % 100ms pulse gap
 Delay = '0'; % Trigger Delay
 
 % IV Input Parameters
@@ -54,17 +54,20 @@ Priority = '0'; % 1: Wait for measurement 0: Keep pulse width
 % Set up Parameters
 fprintf(OBJ4155, 'FMT 2,0'); % Output Data w/o Header
 fprintf(OBJ4155, ['FL 0,' BiasTerminal]); % Turn Off Filter
-if(Relay)
-    fprintf(OBJ4155, ['CN ' BiasTerminal ',' GndTerminal]);
-end
+fprintf(OBJ4155, ['FL 0,' GndTerminal]);  % Turn Off Filter
 
 % Set Measurement Mode
 fprintf(OBJ4155, ['MM 3,' BiasTerminal]); % 3: 1ch pulsed spot measurement
 
-% GND Terminal
+% Set Active Channels if Toggle Relay is True
+if(Relay)
+    fprintf(OBJ4155, ['CN ' BiasTerminal ',' GndTerminal]);
+end
+
+% GND Terminal Settings
 fprintf(OBJ4155, ['DV ' GndTerminal ',' Range ',' Vgnd ',' Icomp]);
 
-% BIAS Terminal
+% BIAS Terminal Settings
 fprintf(OBJ4155, ['PT ' Hold ',' Width ',' Period ',' Delay ',' Priority]);
 fprintf(OBJ4155, ['PV ' BiasTerminal ',' Range ',' Vbase ',' Vbias ',' Icomp]);
 
@@ -88,6 +91,7 @@ fprintf(OBJ4155, 'RMD? ');
 BufferStr = fscanf(OBJ4155);
 Current = str2num(BufferStr);
 
+% Clear Active Channels if Toggle Relay is True
 if(Relay)
     fprintf(OBJ4155, 'CL');
 end

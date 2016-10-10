@@ -22,9 +22,9 @@ BiasTerminal = '1';     % SMU bias
 GndTerminal = '3';      % SMU ground
 TargetRon = 500;        % Target value of Ron (ohms)
 TargetRoff = 10000;     % Target value of Roff (ohms)
-ERS_PW = 0.010;         % Erase pulse width (sec)
-PGM_PW = 0.010;         % Program pulse width (sec)
-RD_PW = 0.100;          % Read pulse width (sec)
+ERS_PW = 10;            % Erase pulse width (msec)
+PGM_PW = 10;            % Program pulse width (msec)
+RD_PW = 100;            % Read pulse width (msec)
 ERS_Icomp = 0.020;      % Erase compliance (A)
 PGM_Icomp = 0.020;      % Program compliance (A)
 
@@ -58,11 +58,15 @@ TESTfile = fopen(IVfilename,'a','native','US-ASCII');
 fprintf(TESTfile, '%s\n', 'Time, Res, ReadV');
 
 % Open up the relay switches for the cycling test
+fprintf(OBJ4155, 'FMT 2,0'); % Output Data w/o Header
+fprintf(OBJ4155, ['FL 0,' BiasTerminal]); % Turn Off Filter
+fprintf(OBJ4155, ['FL 0,' GndTerminal]);  % Turn Off Filter
+fprintf(OBJ4155, ['MM 3,' BiasTerminal]); % 3: 1ch pulsed spot measurement
 fprintf(OBJ4155, ['CN ' BiasTerminal ',' GndTerminal]);
 
 % Programming or Erase voltage step
 if Vpulse < 0       % note: opposite of standard RRAM - on state formed with -ve voltage
-    [~,StartRes] = PROGRAM(TargetRon,Vpulse,PGM_PW,MaxCycle,BiasTerminal,GndTerminal,Vread,RD_PW,PGM_Icomp);
+    [~,StartRes] = PROGRAM(TargetRon,Vpulse,PGM_PW/1000,MaxCycle,BiasTerminal,GndTerminal,Vread,RD_PW/1000,PGM_Icomp);
     if (StartRes > TargetRon)
         disp('FAIL: ON Resistance target not met');
         fclose(TESTfile);
@@ -71,7 +75,7 @@ if Vpulse < 0       % note: opposite of standard RRAM - on state formed with -ve
         return;
     end
 else
-    [~,StartRes] = ERASE(TargetRoff,Vpulse,ERS_PW,MaxCycle,BiasTerminal,GndTerminal,Vread,RD_PW,ERS_Icomp);
+    [~,StartRes] = ERASE(TargetRoff,Vpulse,ERS_PW/1000,MaxCycle,BiasTerminal,GndTerminal,Vread,RD_PW/1000,ERS_Icomp);
     if (StartRes < TargetRoff)
         disp('FAIL: OFF Resistance target not met');
         fclose(TESTfile);
@@ -87,9 +91,9 @@ for index = 1:NumberCycles
     % Program or Erase for each cycle without reading
     pause(0.5)
     if Vpulse < 0
-        PULSE_VOLTAGE(Vpulse,PGM_PW,BiasTerminal,GndTerminal,false,PGM_Icomp,0);
+        PULSE_VOLTAGE(Vpulse,PGM_PW/1000,BiasTerminal,GndTerminal,false,PGM_Icomp,0);
     else
-        PULSE_VOLTAGE(Vpulse,ERS_PW,BiasTerminal,GndTerminal,false,ERS_Icomp,0);
+        PULSE_VOLTAGE(Vpulse,ERS_PW/1000,BiasTerminal,GndTerminal,false,ERS_Icomp,0);
     end
     
     % === Setup Zero Time (now resets base_time each loop) ===
@@ -108,7 +112,7 @@ for index = 1:NumberCycles
     end
     
     cur_time = clock;
-    Current = PULSE_READ(Vread,RD_PW,BiasTerminal,GndTerminal,false);
+    Current = PULSE_READ(Vread,RD_PW/1000,BiasTerminal,GndTerminal,false);
     Res = abs(Vread/Current);    % Calculated resistance
     
     seconds = clock2sec(cur_time) - base_time;
